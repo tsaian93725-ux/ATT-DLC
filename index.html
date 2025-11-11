@@ -1,985 +1,1136 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>回合制戰鬥遊戲</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        #game-container {
-            display: flex;
-            width: 100%;
-            max-width: 1200px;
-            height: 600px;
-            background-color: #fff;
-            border: 1px solid #000;
-            position: relative;
-        }
-        #player-side {
-            width: 50%;
-            padding: 20px;
-            border-right: 1px solid #ccc;
-        }
-        #enemy-side {
-            width: 50%;
-            padding: 20px;
-        }
-        .character {
-            margin-bottom: 20px;
-        }
-        .hp-bar {
-            background-color: #ddd;
-            height: 20px;
-            width: 200px;
-            margin-top: 5px;
-        }
-        .hp-fill {
-            background-color: #4caf50;
-            height: 100%;
-        }
-        .hp-value {
-            font-weight: bold;
-        }
-        #log {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 150px;
-            overflow-y: scroll;
-            background-color: #eee;
-            padding: 10px;
-            box-sizing: border-box;
-        }
-        #current-turn {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            font-weight: bold;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>橫版回合制戰鬥遊戲</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Microsoft JhengHei', Arial, sans-serif;
+      background: linear-gradient(to right, #001122, #220011);
+      color: white;
+      overflow: hidden;
+      height: 100vh;
+    }
+    #game {
+      display: flex;
+      height: 100vh;
+      position: relative;
+    }
+    #players {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .player {
+      width: 220px;
+      height: 80px;
+      background: rgba(0, 150, 255, 0.3);
+      border: 2px solid rgba(0, 255, 0, 0.5);
+      border-radius: 10px;
+      text-align: center;
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+      box-shadow: 0 5px 15px rgba(0,255,0,0.2);
+      font-size: 14px;
+    }
+    .player:hover {
+      background: rgba(0, 150, 255, 0.5);
+      border-color: #00ff00;
+    }
+    .player.active {
+      border-color: yellow;
+      box-shadow: 0 0 20px yellow;
+      background: rgba(255, 255, 0, 0.3);
+    }
+    .player.dead {
+      opacity: 0.4;
+      border-color: gray;
+    }
+    .name {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      display: block;
+    }
+    .lv {
+      font-size: 10px;
+      color: gold;
+    }
+    .hpbar {
+      width: 100%;
+      height: 15px;
+      background: rgba(0,0,0,0.5);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 5px 0;
+      position: relative;
+    }
+    .hp {
+      height: 100%;
+      background: linear-gradient(to right, green, lime);
+      transition: width 0.5s;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    .hptext {
+      font-size: 12px;
+      color: #00ff00;
+    }
+    #enemies {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-content: center;
+      gap: 10px;
+      padding: 20px;
+      box-sizing: border-box;
+      position: relative;
+    }
+    .enemy, .boss {
+      width: 160px;
+      height: 80px;
+      background: rgba(255, 50, 50, 0.4);
+      border: 2px solid rgba(255, 0, 0, 0.7);
+      border-radius: 10px;
+      text-align: center;
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 5px 15px rgba(255,0,0,0.3);
+      position: relative;
+      font-size: 14px;
+    }
+    .boss {
+      width: 240px;
+      height: 120px;
+      background: rgba(255, 0, 255, 0.5);
+      border-color: magenta;
+      box-shadow: 0 0 20px magenta;
+      font-size: 16px;
+    }
+    .enemy:hover, .boss:hover {
+      background: rgba(255, 50, 50, 0.6);
+      border-color: #ff0000;
+    }
+    .enemy.selected, .boss.selected {
+      border-color: yellow;
+      box-shadow: 0 0 20px yellow;
+    }
+    .enemy.dead, .boss.dead {
+      opacity: 0.4;
+      border-color: gray;
+    }
+    .ename {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    #prompt {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.9);
+      padding: 15px 25px;
+      border-radius: 15px;
+      font-size: 18px;
+      border: 2px solid #00ff00;
+      box-shadow: 0 0 25px #00ff00;
+      z-index: 100;
+      white-space: nowrap;
+    }
+    #log {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 120px;
+      background: rgba(0,0,0,0.95);
+      overflow-y: auto;
+      padding: 10px;
+      font-size: 12px;
+      line-height: 1.3;
+      z-index: 50;
+    }
+    .log-entry {
+      margin-bottom: 4px;
+      padding: 2px 5px;
+      border-radius: 5px;
+    }
+    .player-log { color: #00ff00; }
+    .enemy-log { color: #ff4444; }
+    .heal-log { color: #44ff44; }
+    #stats {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.8);
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+    button {
+      background: #00ff00;
+      color: black;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 5px;
+    }
+    button:disabled {
+      background: gray;
+      cursor: not-allowed;
+    }
+  </style>
 </head>
 <body>
-    <div id="game-container">
-        <div id="player-side">
-            <h2>玩家角色</h2>
-            <!-- 玩家角色將動態添加 -->
-        </div>
-        <div id="enemy-side">
-            <h2>敵方單位</h2>
-            <!-- 敵人將動態添加 -->
-        </div>
-        <div id="log"></div>
-        <div id="current-turn"></div>
-    </div>
-
-    <script>
-        // 遊戲狀態
-        const gameState = {
-            players: [],
-            enemies: [],
-            turnOrder: [],
-            currentTurnIndex: 0,
-            round: 0,
-            defeatedEnemies: 0,
-            defeatedForLevelUp: 0,
-            defeatedForEnemyBoost: 0,
-            isPlayerTurn: false,
-            currentPlayer: null,
-            buffs: new Map(), // 單位ID -> {buffName: {value, duration}}
-            cooldowns: new Map(), // 單位ID -> {skillName: turnsLeft}
-            skillPoints: new Map(), // 單位ID -> points
-        };
-
-        // 單位基類
-        class Unit {
-            constructor(id, name, atk, def, hp, maxHp, spd, level = 1, isPlayer = false) {
-                this.id = id;
-                this.name = name;
-                this.atk = atk;
-                this.def = def;
-                this.hp = hp;
-                this.maxHp = maxHp;
-                this.spd = spd;
-                this.level = level;
-                this.isPlayer = isPlayer;
-                this.critRate = 0; // 爆擊率
-                this.critDmg = 1.5; // 爆擊傷害倍率
-                this.isDead = false;
-                this.invulnerable = false; // 無敵
-                this.canAct = true; // 是否能行動
-                this.extraMagicDmg = 0; // 額外魔法傷害
-            }
-
-            calculateDamage(target, dmg, isMagic = false, isCrit = false) {
-                let finalDmg = dmg;
-                if (isCrit) {
-                    finalDmg *= (1.5 + Math.random());
-                }
-                if (!isMagic) {
-                    const defReduction = target.def / 50 * 0.005;
-                    finalDmg *= (1 - defReduction);
-                }
-                return Math.max(0, Math.floor(finalDmg));
-            }
-
-            takeDamage(dmg) {
-                if (this.invulnerable) return 0;
-                this.hp -= dmg;
-                if (this.hp <= 0) {
-                    this.hp = 0;
-                    this.isDead = true;
-                }
-                return dmg;
-            }
-
-            heal(amount) {
-                this.hp = Math.min(this.maxHp, this.hp + amount);
-            }
-
-            hasBuff(buffName) {
-                const buffs = gameState.buffs.get(this.id) || {};
-                return buffs[buffName] && buffs[buffName].duration > 0;
-            }
-
-            applyBuff(buffName, value, duration) {
-                if (!gameState.buffs.has(this.id)) gameState.buffs.set(this.id, {});
-                gameState.buffs.get(this.id)[buffName] = {value, duration};
-            }
-
-            updateBuffs() {
-                const buffs = gameState.buffs.get(this.id);
-                if (buffs) {
-                    for (let key in buffs) {
-                        buffs[key].duration--;
-                        if (buffs[key].duration <= 0) delete buffs[key];
-                    }
-                }
-            }
-        }
-
-        // 玩家角色類
-        class LingXuanYe extends Unit {
-            constructor(id) {
-                super(id, '凌玄夜', 300, 650, 1200, 1200, 70, 1, true);
-                this.attackSegments = [0.01, 0.35, 0.55, 1.20]; // 傷害倍率，第一、三物理，二、四魔法
-                this.isMagic = [false, true, false, true];
-            }
-
-            normalAttack(targets) {
-                let log = `${this.name} 發動普通攻擊。<br>`;
-                let currentTarget = targets.find(t => !t.isDead);
-                for (let i = 0; i < this.attackSegments.length; i++) {
-                    if (!currentTarget) break;
-                    const baseDmg = this.atk * this.attackSegments[i] * 1.5; // 攻擊乘1.5
-                    const isMagic = this.isMagic[i];
-                    const isCrit = Math.random() < this.critRate;
-                    const dmg = currentTarget.calculateDamage(currentTarget, baseDmg, isMagic, isCrit);
-                    const taken = currentTarget.takeDamage(dmg);
-                    log += `對 ${currentTarget.name} 造成 ${taken} ${isMagic ? '魔法' : '物理'}傷害${isCrit ? ' (爆擊)' : ''}。<br>`;
-                    if (currentTarget.isDead) {
-                        log += `${currentTarget.name} 死亡。<br>`;
-                        currentTarget = targets.find(t => !t.isDead && t !== currentTarget);
-                    }
-                }
-                return log;
-            }
-
-            skillK() { // 虛空
-                if (this.getCooldown('K') > 0) return `${this.name} 技能K冷卻中，无法使用。<br>`;
-                this.critRate += 0.6;
-                this.applyBuff('regen', 200, 1); // 每回合回200，持續1 (下一回合)
-                this.invulnerable = true;
-                this.setCooldown('K', 2);
-                return `${this.name} 使用虛空，提升60%爆擊率，下一回合無敵並回血200。<br>`;
-            }
-
-            skillO() { // 聖者型態變身
-                if (this.hasBuff('saint') && this.getBuff('saint').value >= 2) return `${this.name} 已疊加2次變身，无法使用。<br>`;
-                const stack = this.hasBuff('saint') ? this.getBuff('saint').value + 1 : 1;
-                this.spd = (this.spd + 60) * 1.8;
-                this.maxHp = (this.maxHp + 500) * 1.6;
-                this.hp = this.maxHp; // 假設變身時滿血，或調整
-                this.atk *= 2;
-                this.applyBuff('saint', stack, 5);
-                return `${this.name} 變身聖者型態，屬性提升 (疊加${stack}次)。<br>`;
-            }
-
-            skillP() { // 無念無痕
-                if (this.getCooldown('P') > 0) return `${this.name} 大招冷卻中，无法使用。<br>`;
-                let log = `${this.name} 使用無念無痕。<br>`;
-                gameState.enemies.forEach(enemy => {
-                    if (!enemy.isDead) {
-                        const dmgPercent = 0.65 + Math.random() * 0.55;
-                        const dmg = enemy.hp * dmgPercent;
-                        const taken = enemy.takeDamage(dmg);
-                        log += `對 ${enemy.name} 造成 ${taken} 傷害 (${(dmgPercent*100).toFixed(0)}%)。<br>`;
-                        if (enemy.isDead) log += `${enemy.name} 死亡。<br>`;
-                    }
-                });
-                this.setCooldown('P', 3);
-                return log;
-            }
-
-            endTurn() {
-                if (this.hasBuff('regen')) this.heal(200);
-                this.invulnerable = false; // 無敵只持續一回合
-            }
-
-            getBuff(buffName) {
-                return (gameState.buffs.get(this.id) || {})[buffName];
-            }
-
-            getCooldown(skill) {
-                return ((gameState.cooldowns.get(this.id) || {})[skill] || 0);
-            }
-
-            setCooldown(skill, turns) {
-                if (!gameState.cooldowns.has(this.id)) gameState.cooldowns.set(this.id, {});
-                gameState.cooldowns.get(this.id)[skill] = turns;
-            }
-        }
-
-        class JiOu extends Unit {
-            constructor(id) {
-                super(id, '吉歐', 230, 900, 1000, 1000, 55, 1, true);
-            }
-
-            normalAttack(target) {
-                const baseDmg = this.atk * 1.5;
-                const isCrit = Math.random() < this.critRate;
-                const dmg = target.calculateDamage(target, baseDmg, false, isCrit);
-                const taken = target.takeDamage(dmg);
-                let log = `${this.name} 攻擊 ${target.name} 造成 ${taken} 傷害${isCrit ? ' (爆擊)' : ''}。<br>`;
-                gameState.enemies.forEach(e => e.atk *= 0.2); // 降低80%攻擊
-                log += `敵方全體攻擊力降低80%。<br>`;
-                return log;
-            }
-
-            skillK() { // 寒冰
-                if (this.getCooldown('K') > 0) return `${this.name} 技能K冷卻中，无法使用。<br>`;
-                let log = `${this.name} 使用寒冰。<br>`;
-                gameState.players.forEach(p => {
-                    if (!p.isDead) p.def *= 5.5; // +450%
-                });
-                log += `我方全體防禦提升450% (2回合)。<br>`;
-                const target = getRandomEnemy();
-                if (target) {
-                    const baseDmg = this.atk * 1.3 * 1.5;
-                    const isCrit = Math.random() < this.critRate;
-                    const dmg = target.calculateDamage(target, baseDmg, false, isCrit);
-                    const taken = target.takeDamage(dmg);
-                    log += `對 ${target.name} 造成 ${taken} 傷害${isCrit ? ' (爆擊)' : ''}，目標無法行動1回合。<br>`;
-                    target.canAct = false;
-                    target.applyBuff('stun', 1, 1);
-                }
-                this.setCooldown('K', 3);
-                return log;
-            }
-
-            skillO() { // 絕對之劍
-                if (this.getCooldown('O') > 0) return `${this.name} 技能O冷卻中，无法使用。<br>`;
-                this.def *= 16; // +1500%
-                this.applyBuff('defBoost', 16, 2);
-                const target = gameState.enemies.reduce((max, e) => (e.hp > max.hp ? e : max), gameState.enemies[0]);
-                let log = `${this.name} 使用絕對之劍，提升防禦1500% (2回合)。<br>`;
-                if (target && !target.isDead) {
-                    const dmg = this.def * 0.5;
-                    const taken = target.takeDamage(dmg);
-                    log += `對 ${target.name} 造成 ${taken} 傷害。<br>`;
-                }
-                this.setCooldown('O', 3);
-                return log;
-            }
-
-            skillP() { // 領域
-                if (this.getCooldown('P') > 0) return `${this.name} 大招冷卻中，无法使用。<br>`;
-                let log = `${this.name} 使用領域。<br>`;
-                gameState.players.forEach(p => {
-                    if (!p.isDead) {
-                        p.def *= 1.15;
-                        p.atk *= 1.3;
-                    }
-                });
-                log += `我方全體防禦+15%、攻擊+30% (5回合)。<br>`;
-                gameState.enemies.forEach(e => {
-                    if (!e.isDead) {
-                        e.canAct = false;
-                        e.applyBuff('stun', 1, 1);
-                        const dmg = e.hp * 0.3;
-                        const taken = e.takeDamage(dmg);
-                        log += ` ${e.name} 扣除30% HP (${taken})，停止行動1回合。<br>`;
-                    }
-                });
-                // 回復兩段
-                gameState.players.forEach(p => {
-                    if (!p.isDead) {
-                        p.heal(this.def * 0.1);
-                        p.heal(this.atk * 3.5);
-                    }
-                });
-                log += `我方全體回復生命 (基於吉歐防禦10% + 攻擊350%)。<br>`;
-                this.setCooldown('P', 0); // 沒指定冷卻，假設無
-                return log;
-            }
-
-            getCooldown(skill) {
-                return ((gameState.cooldowns.get(this.id) || {})[skill] || 0);
-            }
-
-            setCooldown(skill, turns) {
-                if (!gameState.cooldowns.has(this.id)) gameState.cooldowns.set(this.id, {});
-                gameState.cooldowns.get(this.id)[skill] = turns;
-            }
-        }
-
-        class QianQie extends Unit {
-            constructor(id) {
-                super(id, '千切', 150, 500, 900, 900, 150, 1, true);
-            }
-
-            normalAttack(target) {
-                const baseDmg = this.atk * 1.5;
-                const isCrit = Math.random() < this.critRate;
-                const dmg = target.calculateDamage(target, baseDmg, false, isCrit);
-                const taken = target.takeDamage(dmg);
-                let log = `${this.name} 攻擊 ${target.name} 造成 ${taken} 傷害${isCrit ? ' (爆擊)' : ''}。<br>`;
-                gameState.players.forEach(p => gameState.skillPoints.set(p.id, (gameState.skillPoints.get(p.id) || 0) + 10));
-                this.critDmg *= 1.2;
-                log += `我方全體技能值+10，爆擊傷害+1.2倍。<br>`;
-                return log;
-            }
-
-            skillK() { // 神速
-                if (this.getCooldown('K') > 0) return `${this.name} 技能K冷卻中，无法使用。<br>`;
-                this.spd *= 1.2;
-                let log = `${this.name} 使用神速，提升20%速度。<br>`;
-                gameState.enemies.forEach(e => {
-                    if (!e.isDead) {
-                        const dmg = this.spd * 4; // 降低到400%
-                        const taken = e.takeDamage(dmg);
-                        log += `對 ${e.name} 造成 ${taken} 傷害 (速度*400%)。<br>`;
-                        if (e.isDead) log += `${e.name} 死亡。<br>`;
-                    }
-                });
-                this.setCooldown('K', 2);
-                return log;
-            }
-
-            skillO() { // 領域
-                if (this.getCooldown('O') > 0) return `${this.name} 技能O冷卻中，无法使用。<br>`;
-                let log = `${this.name} 使用領域。<br>`;
-                gameState.enemies.forEach(e => {
-                    if (!e.isDead) {
-                        const dmg = this.spd * 10;
-                        const taken = e.takeDamage(dmg);
-                        log += `對 ${e.name} 造成 ${taken} 傷害 (速度*1000%)。<br>`;
-                        e.applyBuff('debuffAtk', 0.25, 2); // 攻擊前扣25% atk的HP
-                        e.def *= 0.7; // -30% def
-                        if (e.isDead) log += `${e.name} 死亡。<br>`;
-                    }
-                });
-                this.setCooldown('O', 2);
-                return log;
-            }
-
-            skillP() { // 速度
-                if (this.getCooldown('P') > 0) return `${this.name} 大招冷卻中，无法使用。<br>`;
-                this.spd *= 2.5; // +150%
-                this.atk *= 1.15;
-                let log = `${this.name} 使用速度，提升150%速度、15%攻擊。<br>`;
-                const sortedEnemies = [...gameState.enemies].sort((a,b) => a.spd - b.spd).slice(0,2);
-                sortedEnemies.forEach(e => {
-                    if (!e.isDead) {
-                        e.canAct = false;
-                        e.applyBuff('stun', 1, 1);
-                        log += `${e.name} 停止行動1回合。<br>`;
-                        if (e.spd < this.spd) {
-                            e.applyBuff('stun', 1, 2); // 2回合無法行動
-                            e.def *= 0; // -500% def? 假設設為0
-                            log += `${e.name} 因速度低，2回合無法行動，防禦-500%。<br>`;
-                        }
-                    }
-                });
-                this.setCooldown('P', 0); // 沒指定
-                return log;
-            }
-
-            getCooldown(skill) {
-                return ((gameState.cooldowns.get(this.id) || {})[skill] || 0);
-            }
-
-            setCooldown(skill, turns) {
-                if (!gameState.cooldowns.has(this.id)) gameState.cooldowns.set(this.id, {});
-                gameState.cooldowns.get(this.id)[skill] = turns;
-            }
-        }
-
-        class BanNi extends Unit {
-            constructor(id) {
-                super(id, '班尼', 100, 430, 800, 800, 43, 1, true);
-            }
-
-            normalAttack(target) {
-                const baseDmg = this.atk * 1.5;
-                const isCrit = Math.random() < this.critRate;
-                const dmg = target.calculateDamage(target, baseDmg, false, isCrit);
-                const taken = target.takeDamage(dmg);
-                let log = `${this.name} 攻擊 ${target.name} 造成 ${taken} 傷害${isCrit ? ' (爆擊)' : ''}。<br>`;
-                gameState.players.forEach(p => p.critRate += 0.15);
-                log += `我方全體爆擊率+15%。<br>`;
-                const randomEnemy = getRandomEnemy();
-                if (randomEnemy) {
-                    const magicDmg = this.atk * 0.65; // 魔法傷害65%
-                    const takenMagic = randomEnemy.takeDamage(magicDmg);
-                    log += `對 ${randomEnemy.name} 額外魔法傷害 ${takenMagic}。<br>`;
-                }
-                return log;
-            }
-
-            skillK() { // 燃燒之心
-                if (this.getCooldown('K') > 0) return `${this.name} 技能K冷卻中，无法使用。<br>`;
-                const target = getRandomEnemy();
-                let log = '';
-                if (target) {
-                    const baseDmg = this.atk * 2.5 * 1.5;
-                    const isCrit = Math.random() < this.critRate;
-                    const dmg = target.calculateDamage(target, baseDmg, false, isCrit);
-                    const taken = target.takeDamage(dmg);
-                    log = `${this.name} 使用燃燒之心，對 ${target.name} 造成 ${taken} 傷害${isCrit ? ' (爆擊)' : ''}。<br>`;
-                }
-                this.setCooldown('K', 0); // 沒指定
-                return log;
-            }
-
-            skillO() { // 奇蹟之力
-                if (this.getCooldown('O') > 0) return `${this.name} 技能O冷卻中，无法使用。<br>`;
-                let log = `${this.name} 使用奇蹟之力。<br>`;
-                gameState.players.forEach(p => {
-                    if (!p.isDead && p.hp < p.maxHp * 0.7) {
-                        p.heal(p.maxHp * 0.8 - p.hp); // 到80%
-                        log += `${p.name} 回復到80% HP。<br>`;
-                    }
-                    p.atk *= 1.6;
-                });
-                log += `我方全體攻擊+60%。<br>`;
-                gameState.players.forEach(p => p.applyBuff('regen', this.maxHp * 0.1 + 300, 3));
-                log += `3回合內每回合回復 (10%班尼HP + 300)。<br>`;
-                this.setCooldown('O', 4);
-                return log;
-            }
-
-            skillP() { // 大招：復活 + 奇蹟之心
-                if (this.getCooldown('P') > 0) return `${this.name} 大招冷卻中，无法使用。<br>`;
-                let log = `${this.name} 使用大招。<br>`;
-                // 復活
-                const deadTeammate = gameState.players.find(p => p.isDead);
-                if (deadTeammate) {
-                    deadTeammate.isDead = false;
-                    deadTeammate.hp = deadTeammate.maxHp * 0.85;
-                    log += `復活 ${deadTeammate.name} 到85% HP。<br>`;
-                }
-                // 奇蹟之心
-                gameState.players.forEach(p => {
-                    // 解除負面BUFF
-                    const buffs = gameState.buffs.get(p.id) || {};
-                    for (let key in buffs) {
-                        if (buffs[key].value < 0) delete buffs[key]; // 假設負值為debuff
-                    }
-                    p.maxHp *= 1.18;
-                    p.hp = Math.min(p.hp * 1.18, p.maxHp);
-                    p.applyBuff('maxHpBoost', 1.18, 3);
-                });
-                log += `全體負面BUFF解除，生命上限+18% (3回合)。<br>`;
-                this.setCooldown('P', 0); // 沒指定
-                return log;
-            }
-
-            endTurn() {
-                if (this.hasBuff('regen')) {
-                    gameState.players.forEach(p => p.heal(this.maxHp * 0.1 + 300));
-                }
-            }
-
-            getCooldown(skill) {
-                return ((gameState.cooldowns.get(this.id) || {})[skill] || 0);
-            }
-
-            setCooldown(skill, turns) {
-                if (!gameState.cooldowns.has(this.id)) gameState.cooldowns.set(this.id, {});
-                gameState.cooldowns.get(this.id)[skill] = turns;
-            }
-        }
-
-        // 敵人類
-        class Enemy extends Unit {
-            constructor(id, name, atk, def, hp, maxHp, spd) {
-                super(id, name, atk, def, hp, maxHp, spd, 1, false);
-                this.isBoss = false;
-            }
-
-            aiAction() {
-                if (!this.canAct) return `${this.name} 無法行動。<br>`;
-                const rand = Math.random();
-                if (rand < 0.5) {
-                    return this.normalAttack(getRandomPlayer());
-                } else {
-                    const skillIndex = Math.floor(Math.random() * 5); // 加一個新技能
-                    switch (skillIndex) {
-                        case 0: return this.skill1();
-                        case 1: return this.skill2();
-                        case 2: return this.skill3();
-                        case 3: return this.skill4();
-                        case 4: return this.skill5(); // 新技能
-                    }
-                }
-            }
-
-            normalAttack(target) {
-                const baseDmg = this.atk * 1.5;
-                const isCrit = Math.random() < this.critRate;
-                const dmg = target.calculateDamage(target, baseDmg, false, isCrit);
-                const taken = target.takeDamage(dmg);
-                return `${this.name} 攻擊 ${target.name} 造成 ${taken} 傷害${isCrit ? ' (爆擊)' : ''}。<br>`;
-            }
-
-            skill1() { // 破軍
-                const target = getRandomPlayer();
-                const baseDmg = this.atk * 1.2 * 0.65; // 魔法120% 但魔法65%
-                const taken = target.takeDamage(baseDmg);
-                target.spd *= 0; // 降低100%
-                return `${this.name} 使用破軍，對 ${target.name} 造成 ${taken} 魔法傷害，速度降低100%。<br>`;
-            }
-
-            skill2() { // 魔禁
-                const target = getRandomPlayer();
-                target.applyBuff('noSkill', 1, 1); // 禁止使用技能1回合
-                return `${this.name} 使用魔禁，${target.name} 1回合無法使用技能。<br>`;
-            }
-
-            skill3() { // 鼓舞
-                const ally = getRandomEnemy();
-                ally.atk *= 1.5;
-                ally.heal(ally.maxHp * 0.5);
-                return `${this.name} 使用鼓舞，${ally.name} 攻擊+50%，回復50% HP。<br>`;
-            }
-
-            skill4() { // 鼓舞敵方爆擊?
-                gameState.enemies.forEach(e => e.critRate += 0.1);
-                return `${this.name} 使用技能4，敵方全體爆擊率+10%。<br>`;
-            }
-
-            skill5() { // 新技能，假設群體傷害
-                let log = `${this.name} 使用新技能：群體攻擊。<br>`;
-                gameState.players.forEach(p => {
-                    if (!p.isDead) {
-                        const baseDmg = this.atk * 0.8 * 1.5;
-                        const taken = p.takeDamage(baseDmg);
-                        log += `對 ${p.name} 造成 ${taken} 傷害。<br>`;
-                    }
-                });
-                return log;
-            }
-
-            checkPassive() {
-                if (this.hp / this.maxHp < 0.4) {
-                    this.atk *= 2.5;
-                    this.def *= 2.5;
-                    this.spd *= 2.5;
-                    this.extraMagicDmg = this.atk * 0.65; // 額外魔法
-                    // 假設只觸發一次
-                }
-            }
-        }
-
-        class Boss extends Enemy {
-            constructor(id, name, atk, def, hp, maxHp, spd) {
-                super(id, name, atk, def, hp, maxHp, spd);
-                this.isBoss = true;
-                this.attackCount = 0;
-                this.minions = [];
-            }
-
-            aiAction() {
-                if (!this.canAct) return `${this.name} 無法行動。<br>`;
-                const rand = Math.random();
-                if (rand < 0.5) {
-                    return this.normalAttack(getRandomPlayer());
-                } else {
-                    const skillIndex = Math.floor(Math.random() * 4);
-                    switch (skillIndex) {
-                        case 0: return this.bossSkill1();
-                        case 1: return this.bossSkill2();
-                        case 2: return this.bossSkill3();
-                        case 3: return this.bossSkill4();
-                    }
-                }
-            }
-
-            bossSkill1() { // 滅世
-                let log = `${this.name} 使用滅世。<br>`;
-                const totalDmg = this.hp * 1.2;
-                const perPlayer = totalDmg / gameState.players.length;
-                gameState.players.forEach(p => {
-                    if (!p.isDead) {
-                        const taken = p.takeDamage(perPlayer);
-                        log += `對 ${p.name} 造成 ${taken} 傷害。<br>`;
-                    }
-                });
-                const randomPlayer = getRandomPlayer();
-                randomPlayer.canAct = false;
-                randomPlayer.applyBuff('stun', 1, 1);
-                log += `${randomPlayer.name} 無法行動。<br>`;
-                return log;
-            }
-
-            bossSkill2() { // 天珩
-                const minionHp = this.maxHp * 0.7;
-                const minionAtk = this.atk * 0.7;
-                const minionDef = this.def * 0.7;
-                const minionSpd = this.spd * 0.7;
-                const minionId = Date.now();
-                const minion = new Enemy(minionId, '隨從', minionAtk, minionDef, minionHp, minionHp, minionSpd);
-                gameState.enemies.push(minion);
-                this.minions.push(minion);
-                addEnemyToUI(minion);
-                return `${this.name} 召喚隨從 (70%屬性)。<br>`;
-            }
-
-            bossSkill3() { // 龜甲
-                if (this.getCooldown('boss3') > 0) return this.normalAttack(getRandomPlayer());
-                this.applyBuff('dmgReduce', 3, 1); // 減低300%
-                this.setCooldown('boss3', 4);
-                return `${this.name} 使用龜甲，下次攻擊傷害減低300%。<br>`;
-            }
-
-            bossSkill4() { // 當受到2次攻擊，行動2次
-                // 這是被動，AI不主動用，假設在takeDamage中計數
-                return this.normalAttack(getRandomPlayer());
-            }
-
-            takeDamage(dmg) {
-                if (this.hasBuff('dmgReduce')) {
-                    dmg *= 0; // 減300% ? 假設減到0
-                }
-                const taken = super.takeDamage(dmg);
-                this.attackCount++;
-                if (this.attackCount % 2 === 0) {
-                    // 立即行動2次
-                    this.aiAction();
-                    this.aiAction();
-                }
-                return taken;
-            }
-
-            endRound() {
-                if (gameState.round % 3 === 0) {
-                    this.heal(this.hp * 0.6);
-                }
-                this.checkPassive();
-            }
-
-            getCooldown(skill) {
-                return ((gameState.cooldowns.get(this.id) || {})[skill] || 0);
-            }
-
-            setCooldown(skill, turns) {
-                if (!gameState.cooldowns.has(this.id)) gameState.cooldowns.set(this.id, {});
-                gameState.cooldowns.get(this.id)[skill] = turns;
-            }
-        }
-
-        // 輔助函數
-        function getRandomPlayer() {
-            const alive = gameState.players.filter(p => !p.isDead);
-            return alive[Math.floor(Math.random() * alive.length)] || null;
-        }
-
-        function getRandomEnemy() {
-            const alive = gameState.enemies.filter(e => !e.isDead);
-            return alive[Math.floor(Math.random() * alive.length)] || null;
-        }
-
-        // 初始化遊戲
-        function initGame() {
-            // 創建玩家角色
-            gameState.players = [
-                new LingXuanYe(1),
-                new JiOu(2),
-                new QianQie(3),
-                new BanNi(4)
-            ];
-
-            gameState.players.forEach(p => gameState.skillPoints.set(p.id, 0));
-
-            // UI
-            const playerSide = document.getElementById('player-side');
-            gameState.players.forEach(p => {
-                const div = document.createElement('div');
-                div.className = 'character';
-                div.id = `player-${p.id}`;
-                div.innerHTML = `${p.name} LV.${p.level}<br>HP: <span class="hp-value">${Math.floor(p.hp)}/${Math.floor(p.maxHp)}</span><div class="hp-bar"><div class="hp-fill" style="width:${(p.hp / p.maxHp * 100)}%"></div></div>`;
-                playerSide.appendChild(div);
-            });
-
-            // 生成初始敵人
-            generateEnemies();
-
-            // 開始第一回合
-            startRound();
-        }
-
-        function generateEnemies() {
-            const numEnemies = 3 + Math.floor(Math.random() * 3); // 3-5
-            gameState.enemies = [];
-            const enemySide = document.getElementById('enemy-side');
-            enemySide.innerHTML = '<h2>敵方單位</h2>';
-            for (let i = 0; i < numEnemies; i++) {
-                const id = 100 + i;
-                const atk = 100 + Math.random() * 250;
-                const def = 300 + Math.random() * 200;
-                const hp = 500 + Math.random() * 300;
-                const spd = 20 + Math.random() * 80;
-                const enemy = new Enemy(id, `敵人${i+1}`, atk, def, hp, hp, spd);
-                gameState.enemies.push(enemy);
-                addEnemyToUI(enemy);
-            }
-            // 隨機是否生成BOSS，假設每5輪
-            if (gameState.defeatedEnemies % 5 === 0 && gameState.defeatedEnemies > 0) {
-                const bossId = 200;
-                const multiplier = 1.5 + Math.random() * 0.5;
-                const baseEnemy = gameState.enemies[0] || {atk:100, def:300, hp:500, spd:20};
-                const boss = new Boss(bossId, 'BOSS', baseEnemy.atk * multiplier, baseEnemy.def * multiplier, baseEnemy.hp * multiplier, baseEnemy.hp * multiplier, baseEnemy.spd * multiplier);
-                gameState.enemies.push(boss);
-                addEnemyToUI(boss);
-            }
-        }
-
-        function addEnemyToUI(enemy) {
-            const enemySide = document.getElementById('enemy-side');
-            const div = document.createElement('div');
-            div.className = 'character';
-            div.id = `enemy-${enemy.id}`;
-            div.innerHTML = `${enemy.name}${enemy.isBoss ? ' (BOSS)' : ''}<br>HP: <span class="hp-value">${Math.floor(enemy.hp)}/${Math.floor(enemy.maxHp)}</span><div class="hp-bar"><div class="hp-fill" style="width:${(enemy.hp / enemy.maxHp * 100)}%"></div></div>`;
-            enemySide.appendChild(div);
-        }
-
-        function startRound() {
-            gameState.round++;
-            logMessage(`第 ${gameState.round} 回合開始。`);
-
-            // 更新BUFF、冷卻
-            [...gameState.players, ...gameState.enemies].forEach(unit => {
-                if (!unit.isDead) {
-                    unit.updateBuffs();
-                    if (gameState.cooldowns.has(unit.id)) {
-                        for (let key in gameState.cooldowns.get(unit.id)) {
-                            gameState.cooldowns.get(unit.id)[key]--;
-                            if (gameState.cooldowns.get(unit.id)[key] <= 0) delete gameState.cooldowns.get(unit.id)[key];
-                        }
-                    }
-                    if (unit.endRound) unit.endRound(); // 如BOSS回復
-                    if (unit.endTurn) unit.endTurn(); // 如regen
-                    unit.canAct = true; // 重置行動
-                }
-            });
-
-            // 排序轉序
-            const allUnits = [...gameState.players, ...gameState.enemies].filter(u => !u.isDead);
-            gameState.turnOrder = allUnits.sort((a,b) => b.spd - a.spd);
-            gameState.currentTurnIndex = 0;
-            nextTurn();
-        }
-
-        function nextTurn() {
-            if (gameState.currentTurnIndex >= gameState.turnOrder.length) {
-                checkEndRound();
-                return;
-            }
-
-            const currentUnit = gameState.turnOrder[gameState.currentTurnIndex];
-            document.getElementById('current-turn').innerText = `當前回合: ${currentUnit.name}`;
-
-            if (currentUnit.isDead) {
-                gameState.currentTurnIndex++;
-                nextTurn();
-                return;
-            }
-
-            if (currentUnit.isPlayer) {
-                gameState.isPlayerTurn = true;
-                gameState.currentPlayer = currentUnit;
-                logMessage(`輪到 ${currentUnit.name} 行動。按 J(攻擊), K(技能1), O(技能2), P(大招)`);
-            } else {
-                gameState.isPlayerTurn = false;
-                const actionLog = currentUnit.aiAction();
-                logMessage(actionLog);
-                checkDeaths();
-                gameState.currentTurnIndex++;
-                nextTurn();
-            }
-        }
-
-        function playerAction(key) {
-            if (!gameState.isPlayerTurn) return;
-            const player = gameState.currentPlayer;
-            let actionLog = '';
-            const target = getRandomEnemy();
-
-            switch (key) {
-                case 'j':
-                    gameState.skillPoints.set(player.id, (gameState.skillPoints.get(player.id) || 0) + 45); // 只在J攻擊後+45
-                    if (player.name === '凌玄夜') {
-                        actionLog = player.normalAttack(gameState.enemies);
-                    } else if (target) {
-                        actionLog = player.normalAttack(target);
-                    } else {
-                        actionLog = '沒有敵人可攻擊。<br>';
-                    }
-                    break;
-                case 'k':
-                    actionLog = player.skillK();
-                    break;
-                case 'o':
-                    actionLog = player.skillO();
-                    break;
-                case 'p':
-                    if ((gameState.skillPoints.get(player.id) || 0) < 100) {
-                        actionLog = `${player.name} 技能值不足100，无法使用。<br>`;
-                    } else {
-                        actionLog = player.skillP();
-                        gameState.skillPoints.set(player.id, gameState.skillPoints.get(player.id) - 100);
-                    }
-                    break;
-                default:
-                    return;
-            }
-
-            logMessage(actionLog);
-            if (actionLog.includes('无法使用')) {
-                // 不結束回合，允許重新選擇
-                return;
-            }
-
-            if (player.endTurn) player.endTurn();
-
-            checkDeaths();
-            gameState.isPlayerTurn = false;
-            gameState.currentTurnIndex++;
-            nextTurn();
-        }
-
-        function checkDeaths() {
-            gameState.enemies = gameState.enemies.filter(e => {
-                if (e.isDead) {
-                    document.getElementById(`enemy-${e.id}`).remove();
-                    gameState.defeatedEnemies++;
-                    gameState.defeatedForLevelUp++;
-                    gameState.defeatedForEnemyBoost++;
-                    if (gameState.defeatedForLevelUp >= 5) {
-                        levelUpPlayers();
-                        gameState.defeatedForLevelUp = 0;
-                    }
-                    if (gameState.defeatedForEnemyBoost >= 5) {
-                        boostEnemies();
-                        gameState.defeatedForEnemyBoost = 0;
-                    }
-                    return false;
-                }
-                return true;
-            });
-
-            gameState.players = gameState.players.filter(p => {
-                if (p.isDead) {
-                    document.getElementById(`player-${p.id}`).remove();
-                    return false;
-                }
-                return true;
-            });
-
-            updateHPBars();
-
-            if (gameState.enemies.length === 0) {
-                checkEndRound();
-            }
-        }
-
-        function checkEndRound() {
-            if (gameState.enemies.length === 0) {
-                logMessage('所有敵人死亡，擊敗一輪敵人，敵人獲得新技能！生成新一輪敵人。');
-                generateEnemies();
-            }
-            if (gameState.players.length === 0) {
-                logMessage('所有玩家角色死亡，遊戲結束。');
-                return;
-            }
-            startRound();
-        }
-
-        function levelUpPlayers() {
-            const multiplier = 1.1 + Math.random() * 0.4;
-            gameState.players.forEach(p => {
-                p.level++;
-                p.atk *= multiplier;
-                p.def *= multiplier;
-                p.maxHp *= multiplier;
-                p.hp = p.maxHp;
-                p.spd *= multiplier;
-            });
-            logMessage(`玩家角色等級提升，所有屬性 * ${multiplier.toFixed(2)}。`);
-        }
-
-        function boostEnemies() {
-            const multiplier = 1.1 + Math.random() * 0.5;
-            // 未來敵人提升，但既然新生成，假設全局倍率，但為簡單，當生成時應用
-            logMessage(`敵人屬性將提升 * ${multiplier.toFixed(2)} (下輪生效)。`);
-            // 實際在generateEnemies中可加全局倍率變數
-        }
-
-        function updateHPBars() {
-            gameState.players.forEach(p => {
-                const elem = document.getElementById(`player-${p.id}`);
-                if (elem) {
-                    const fill = elem.querySelector('.hp-fill');
-                    const value = elem.querySelector('.hp-value');
-                    if (fill) fill.style.width = `${(p.hp / p.maxHp * 100)}%`;
-                    if (value) value.innerText = `${Math.floor(p.hp)}/${Math.floor(p.maxHp)}`;
-                }
-            });
-            gameState.enemies.forEach(e => {
-                const elem = document.getElementById(`enemy-${e.id}`);
-                if (elem) {
-                    const fill = elem.querySelector('.hp-fill');
-                    const value = elem.querySelector('.hp-value');
-                    if (fill) fill.style.width = `${(e.hp / e.maxHp * 100)}%`;
-                    if (value) value.innerText = `${Math.floor(e.hp)}/${Math.floor(e.maxHp)}`;
-                }
-            });
-        }
-
-        function logMessage(msg) {
-            const log = document.getElementById('log');
-            log.innerHTML += msg;
-            log.scrollTop = log.scrollHeight;
-        }
-
-        // 鍵盤監聽
-        document.addEventListener('keydown', e => {
-            const key = e.key.toLowerCase();
-            if (['j', 'k', 'o', 'p'].includes(key)) {
-                playerAction(key);
-            }
+  <div id="game">
+    <div id="players"></div>
+    <div id="enemies"></div>
+  </div>
+  <div id="prompt">按 <span style="color:yellow;">J</span> 普通攻擊 | <span style="color:cyan;">K</span> 技能一 | <span style="color:magenta;">O</span> 技能二 | <span style="color:gold;">P</span> 大招<br>點擊敵人選擇目標</div>
+  <div id="log"></div>
+  <div id="stats">
+    擊敗敵人: <span id="defeated">0</span> | 玩家升級次: <span id="playerUp">0</span> | 敵人升級次: <span id="enemyUp">0</span><br>
+    <button onclick="nextWave()">下一波 (測試)</button>
+  </div>
+
+  <script>
+    // 遊戲核心變數
+    let players = [];
+    let enemies = [];
+    let actionQueue = [];
+    let currentActionIndex = 0;
+    let activePlayerId = -1;
+    let selectedTarget = null;
+    let totalDefeated = 0;
+    let playerUpgradeCount = 0;
+    let enemyUpgradeCount = 0;
+    let isPlayerTurn = false;
+    let gamePaused = false;
+    let bossWave = false;
+
+    // Buff類型定義
+    const BUFF_TYPES = {
+      ATK_MULT: 'atk_mult',
+      DEF_MULT: 'def_mult',
+      SPD_MULT: 'spd_mult',
+      CRIT_RATE_ADD: 'crit_rate_add',
+      CRIT_DMG_MULT: 'crit_dmg_mult',
+      HEAL_PER_TURN: 'heal_per_turn',
+      INVINCIBLE: 'invincible',
+      STUN: 'stun',
+      SILENCE: 'silence',
+      ATK_REDUCE: 'atk_reduce', // value negative
+      DEF_REDUCE: 'def_reduce',
+      SPD_REDUCE: 'spd_reduce',
+      BURN: 'burn', // {duration, ignore_pct}
+      SELF_DMG_BEFORE_ACT: 'self_dmg_before_act', // value = fraction of atk
+      TRANSFORM_TIMER: 'transform_timer'
+    };
+
+    // Unit 基礎類
+    class Unit {
+      constructor(name, atk, def, maxHp, spd, isPlayer, id, isBoss = false) {
+        this.name = name;
+        this.atk = atk;
+        this.def = def;
+        this.maxHp = maxHp;
+        this.hp = maxHp;
+        this.spd = spd;
+        this.isPlayer = isPlayer;
+        this.id = id;
+        this.isBoss = isBoss;
+        this.skillPoints = 0;
+        this.buffs = [];
+        this.cooldowns = { k: 0, o: 0, p: 0 };
+        this.transformLevel = 0;
+        this.preTransformStats = null;
+        this.revertTimer = 0;
+        this.critRateBase = 0.05;
+        this.bossAttackCount = 0; // for boss skill4
+        this.alive = true;
+      }
+
+      update() {
+        // 更新buffs
+        this.buffs = this.buffs.filter(buff => {
+          if (buff.duration !== undefined) buff.duration--;
+          return buff.duration > 0 || buff.duration === undefined; // undefined for permanent
         });
 
-        initGame();
-    </script>
+        // 每回合heal
+        let heal = 0;
+        this.buffs.forEach(b => {
+          if (b.type === BUFF_TYPES.HEAL_PER_TURN) heal += b.value;
+        });
+        if (heal > 0) {
+          this.hp = Math.min(this.maxHp, this.hp + heal);
+          addLog(`${this.name} 每回合回復 ${heal} HP`, 'heal-log');
+        }
+
+        // 冷卻減少
+        Object.keys(this.cooldowns).forEach(key => {
+          if (this.cooldowns[key] > 0) this.cooldowns[key]--;
+        });
+
+        // transform revert
+        if (this.revertTimer > 0) {
+          this.revertTimer--;
+          if (this.revertTimer <= 0 && this.preTransformStats) {
+            this.atk = this.preTransformStats.atk;
+            this.def = this.preTransformStats.def;
+            this.spd = this.preTransformStats.spd;
+            this.maxHp = this.preTransformStats.maxHp;
+            let ratio = this.hp / this.preTransformStats.oldMaxHp;
+            this.hp = ratio * this.maxHp;
+            this.preTransformStats = null;
+            this.transformLevel = 0;
+            addLog(`${this.name} 變身結束，回歸原狀`, 'player-log');
+          }
+        }
+
+        // check dead
+        if (this.hp <= 0) {
+          this.alive = false;
+        }
+      }
+
+      getEffectiveAtk() {
+        let mult = 1;
+        this.buffs.forEach(b => {
+          if (b.type === BUFF_TYPES.ATK_MULT) mult *= (1 + b.value);
+          if (b.type === BUFF_TYPES.ATK_REDUCE) mult *= (1 + b.value); // negative
+        });
+        return this.atk * mult;
+      }
+
+      getEffectiveDef() {
+        let mult = 1;
+        this.buffs.forEach(b => {
+          if (b.type === BUFF_TYPES.DEF_MULT) mult *= (1 + b.value);
+          if (b.type === BUFF_TYPES.DEF_REDUCE) mult *= (1 + b.value);
+        });
+        return this.def * mult;
+      }
+
+      getEffectiveSpd() {
+        let mult = 1;
+        this.buffs.forEach(b => {
+          if (b.type === BUFF_TYPES.SPD_MULT) mult *= (1 + b.value);
+          if (b.type === BUFF_TYPES.SPD_REDUCE) mult *= (1 + b.value);
+        });
+        return this.spd * mult;
+      }
+
+      getEffectiveCritRate() {
+        let rate = this.critRateBase;
+        this.buffs.forEach(b => {
+          if (b.type === BUFF_TYPES.CRIT_RATE_ADD) rate += b.value;
+        });
+        return Math.min(1, rate);
+      }
+
+      getCritDmgMult() {
+        let mult = 1;
+        this.buffs.forEach(b => {
+          if (b.type === BUFF_TYPES.CRIT_DMG_MULT) mult *= b.value;
+        });
+        return mult;
+      }
+
+      isStunned() {
+        return this.buffs.some(b => b.type === BUFF_TYPES.STUN);
+      }
+
+      isSilenced() {
+        return this.buffs.some(b => b.type === BUFF_TYPES.SILENCE);
+      }
+
+      isInvincible() {
+        return this.buffs.some(b => b.type === BUFF_TYPES.INVINCIBLE);
+      }
+
+      takeDamage(dmg, isMagic = false, ignoreDefPct = 0) {
+        if (this.isInvincible()) {
+          addLog(`${this.name} 無敵！無傷害`, 'heal-log');
+          return 0;
+        }
+        let finalDmg = dmg;
+        if (!isMagic) {
+          let effDef = this.getEffectiveDef();
+          let reducePct = Math.min(1, effDef / 50 * 0.005);
+          finalDmg *= (1 - reducePct);
+          finalDmg *= (1 - ignoreDefPct);
+          // burn ignore
+          this.buffs.forEach(b => {
+            if (b.type === BUFF_TYPES.BURN) finalDmg *= (1 - b.ignorePct);
+          });
+        }
+        finalDmg = Math.max(1, Math.floor(finalDmg));
+        this.hp -= finalDmg;
+        if (this.hp <= 0) this.hp = 0;
+        if (this.isBoss) this.bossAttackCount++;
+        return finalDmg;
+      }
+
+      addBuff(buff) {
+        // 簡化，替換同類型或疊加
+        const existing = this.buffs.find(b => b.type === buff.type);
+        if (existing) {
+          existing.value = buff.value;
+          existing.duration = buff.duration;
+        } else {
+          this.buffs.push(buff);
+        }
+      }
+    }
+
+    // 玩家角色類，擴展特定技能
+    class Player1 extends Unit { // 凌玄夜
+      constructor() {
+        super('凌玄夜', 300, 650, 1200, 70, true, 0);
+      }
+      actionJ(target) {
+        const segments = [
+          {mult: 0.01, magic: false},
+          {mult: 0.35, magic: true},
+          {mult: 0.55, magic: false},
+          {mult: 1.20, magic: true}
+        ];
+        let currTarget = target;
+        segments.forEach(seg => {
+          if (currTarget.hp <= 0 || !currTarget.alive) {
+            currTarget = getAliveEnemies()[0];
+          }
+          if (currTarget) {
+            let baseDmg = this.getEffectiveAtk() * seg.mult;
+            let isCrit = Math.random() < this.getEffectiveCritRate();
+            if (isCrit) baseDmg *= (1.5 + Math.random() * 1) * this.getCritDmgMult();
+            let actual = currTarget.takeDamage(baseDmg, seg.magic);
+            addLog(`${this.name} 普通攻第${seg.mult*100}%段 ${seg.magic?'魔法':'物理'} ${actual}傷害給 ${currTarget.name}`, 'player-log');
+          }
+        });
+        this.skillPoints = Math.min(100, this.skillPoints + 45);
+      }
+      actionK() {
+        if (this.cooldowns.k > 0) return;
+        this.addBuff({type: BUFF_TYPES.CRIT_RATE_ADD, value: 0.5, duration: 999}); // 永久
+        this.addBuff({type: BUFF_TYPES.HEAL_PER_TURN, value: 200, duration: 999});
+        this.addBuff({type: BUFF_TYPES.INVINCIBLE, duration: 1});
+        this.cooldowns.k = 2;
+        addLog(`${this.name} 虛空！暴擊+50%、每回合回200、無敵1回合`, 'player-log');
+      }
+      actionO() {
+        if (this.cooldowns.o > 0) return;
+        let oldRatio = this.hp / this.maxHp;
+        let oldMax = this.maxHp;
+        this.spd = (this.spd + 60) * 1.8;
+        this.maxHp = (this.maxHp + 500) * 1.6;
+        this.hp = oldRatio * this.maxHp;
+        this.atk *= 2;
+        this.cooldowns.o = 3; // 假設CD3
+        this.revertTimer = 5;
+        if (!this.preTransformStats) {
+          this.preTransformStats = {atk: this.atk / 2, def: this.def, spd: this.spd / 1.8 - 60 / 1.8, maxHp: this.maxHp / 1.6 - 500 / 1.6, oldMaxHp: oldMax};
+        }
+        addLog(`${this.name} 聖者變身！`, 'player-log');
+      }
+      actionP() {
+        if (this.skillPoints < 100 || this.cooldowns.p > 0) return;
+        let mult = 0.65 + Math.random() * 0.65;
+        let baseDmg = this.getEffectiveAtk() * mult;
+        enemies.forEach(e => {
+          if (e.alive) {
+            let actual = e.takeDamage(baseDmg, true);
+            addLog(`${this.name} 大招 ${actual} 給 ${e.name}`, 'player-log');
+          }
+        });
+        this.addBuff({type: BUFF_TYPES.ATK_MULT, value: 0.15, duration: 3});
+        this.skillPoints -= 100;
+        this.cooldowns.p = 3;
+        addLog(`${this.name} 無念無痕！全敵傷害+自身攻+15% 3回合`, 'player-log');
+      }
+    }
+
+    class Player2 extends Unit { // 吉歐
+      constructor() {
+        super('吉歐', 230, 900, 1000, 55, true, 1);
+      }
+      actionJ(target) {
+        let baseDmg = this.getEffectiveAtk();
+        let isCrit = Math.random() < this.getEffectiveCritRate();
+        if (isCrit) baseDmg *= (1.5 + Math.random() * 1) * this.getCritDmgMult();
+        let actual = target.takeDamage(baseDmg, false);
+        addLog(`${this.name} 普通攻 ${actual} 給 ${target.name}`, 'player-log');
+        // 全敵atk -10%
+        enemies.forEach(e => {
+          if (e.alive) e.addBuff({type: BUFF_TYPES.ATK_REDUCE, value: -0.1, duration: 1});
+        });
+        addLog('敵方全體攻擊-10% 1回合', 'player-log');
+        this.skillPoints = Math.min(100, this.skillPoints + 45);
+      }
+      actionK(target) {
+        if (this.cooldowns.k > 0) return;
+        // 全我方def +450% = *5.5
+        players.forEach(p => {
+          p.addBuff({type: BUFF_TYPES.DEF_MULT, value: 4.5, duration: 2});
+        });
+        let baseDmg = this.getEffectiveAtk() * 1.3;
+        let isCrit = Math.random() < this.getEffectiveCritRate();
+        if (isCrit) baseDmg *= (1.5 + Math.random() * 1) * this.getCritDmgMult();
+        let actual = target.takeDamage(baseDmg, false);
+        target.addBuff({type: BUFF_TYPES.STUN, duration: 1});
+        addLog(`${this.name} 寒冰！全我防+450% 2回、${target.name} ${actual}傷害+暈1回`, 'player-log');
+        this.cooldowns.k = 3;
+      }
+      actionO() {
+        if (this.cooldowns.o > 0) return;
+        this.addBuff({type: BUFF_TYPES.DEF_MULT, value: 1.5, duration: 2});
+        let dmg = this.getEffectiveDef();
+        let highestHpEnemy = getAliveEnemies().reduce((max, e) => e.hp > max.hp ? e : max, {hp: -1});
+        if (highestHpEnemy.hp > -1) {
+          let actual = highestHpEnemy.takeDamage(dmg, true);
+          addLog(`${this.name} 絕對之劍！防+150% 2回、${highestHpEnemy.name} ${actual}魔法傷害`, 'player-log');
+        }
+        this.cooldowns.o = 3;
+      }
+      actionP() {
+        if (this.skillPoints < 100 || this.cooldowns.p > 0) return;
+        players.forEach(p => {
+          p.addBuff({type: BUFF_TYPES.DEF_MULT, value: 0.15, duration: 5});
+          p.addBuff({type: BUFF_TYPES.ATK_MULT, value: 0.30, duration: 5});
+        });
+        enemies.forEach(e => {
+          if (e.alive) {
+            e.takeDamage(e.maxHp * 0.3, true);
+            e.addBuff({type: BUFF_TYPES.STUN, duration: 1});
+          }
+        });
+        let heal1 = this.getEffectiveDef() * 0.1;
+        let heal2 = this.getEffectiveAtk() * 0.35;
+        let totalHeal = heal1 + heal2;
+        players.forEach(p => p.hp = Math.min(p.maxHp, p.hp + totalHeal));
+        addLog(`${this.name} 領域！全我防+15%攻+30% 5回、敵全暈1回-30%HP、我方回${Math.floor(totalHeal)}`, 'player-log');
+        this.skillPoints -= 100;
+        this.cooldowns.p = 5; // 假設
+      }
+    }
+
+    class Player3 extends Unit { // 千切
+      constructor() {
+        super('千切', 150, 500, 900, 150, true, 2);
+      }
+      actionJ(target) {
+        let baseDmg = this.getEffectiveAtk();
+        let isCrit = Math.random() < this.getEffectiveCritRate();
+        if (isCrit) baseDmg *= (1.5 + Math.random() * 1) * this.getCritDmgMult();
+        let actual = target.takeDamage(baseDmg, false);
+        addLog(`${this.name} 普通攻 ${actual} 給 ${target.name}`, 'player-log');
+        // 全我技能值+10, 爆擊傷害*1.2 永久?
+        players.forEach(p => p.skillPoints = Math.min(100, p.skillPoints + 10));
+        players.forEach(p => p.addBuff({type: BUFF_TYPES.CRIT_DMG_MULT, value: 0.2, duration: 999}));
+        addLog('全我技能值+10, 爆擊傷*1.2', 'player-log');
+        this.skillPoints = Math.min(100, this.skillPoints + 45);
+      }
+      actionK(target) {
+        if (this.cooldowns.k > 0) return;
+        this.addBuff({type: BUFF_TYPES.SPD_MULT, value: 0.2, duration: 1}); // 20% spd
+        let baseDmg = this.getEffectiveSpd();
+        let actual = target.takeDamage(baseDmg, false, 0.15); // ignore 15% def
+        addLog(`${this.name} 神速！spd+20%、${target.name} ${actual} spd傷害(無視15%防)`, 'player-log');
+        this.cooldowns.k = 2;
+      }
+      actionO() {
+        if (this.cooldowns.o > 0) return;
+        let baseDmg = this.getEffectiveSpd() * 10;
+        enemies.forEach(e => {
+          let actual = e.takeDamage(baseDmg, false);
+          addLog(`${this.name} 領域 ${actual} 給 ${e.name}`, 'player-log');
+        });
+        enemies.forEach(e => {
+          e.addBuff({type: BUFF_TYPES.SELF_DMG_BEFORE_ACT, value: 0.25, duration: 2});
+          e.addBuff({type: BUFF_TYPES.DEF_REDUCE, value: -0.3, duration: 2});
+        });
+        addLog('敵全2回合前自傷25%攻、-30%防', 'player-log');
+        this.cooldowns.o = 2;
+      }
+      actionP() {
+        if (this.skillPoints < 100 || this.cooldowns.p > 0) return;
+        let sortedEnemies = getAliveEnemies().sort((a,b) => a.getEffectiveSpd() - b.getEffectiveSpd());
+        if (sortedEnemies[0]) sortedEnemies[0].addBuff({type: BUFF_TYPES.STUN, duration: 1});
+        if (sortedEnemies[1]) sortedEnemies[1].addBuff({type: BUFF_TYPES.STUN, duration: 1});
+        this.addBuff({type: BUFF_TYPES.SPD_MULT, value: 1.5, duration: 999}); // 永久?
+        this.addBuff({type: BUFF_TYPES.ATK_MULT, value: 0.15, duration: 999});
+        // 敵 spd < 自 spd , stun 2, def -95%
+        let mySpd = this.getEffectiveSpd();
+        enemies.forEach(e => {
+          if (e.getEffectiveSpd() < mySpd) {
+            e.addBuff({type: BUFF_TYPES.STUN, duration: 2});
+            e.addBuff({type: BUFF_TYPES.DEF_REDUCE, value: -0.95, duration: 2});
+          }
+        });
+        this.skillPoints -= 100;
+        addLog(`${this.name} 速度！最低2敵暈1、低spd敵暈2防-95%、自spd+150%攻+15%`, 'player-log');
+        this.cooldowns.p = 3;
+      }
+    }
+
+    class Player4 extends Unit { // 班尼
+      constructor() {
+        super('班尼', 100, 430, 800, 43, true, 3);
+      }
+      actionJ(target) {
+        // 全我crit +15%
+        players.forEach(p => p.addBuff({type: BUFF_TYPES.CRIT_RATE_ADD, value: 0.15, duration: 1}));
+        // 2段隨機連擊
+        let seg1 = this.getEffectiveDef() * 1.5; // magic
+        let seg2 = this.getEffectiveAtk(); // ignore 10% def
+        let actual1 = target.takeDamage(seg1, true);
+        let actual2 = target.takeDamage(seg2, false, 0.1);
+        addLog(`${this.name} 普通攻 ${actual1}+${actual2} 給 ${target.name} (全我crit+15%)`, 'player-log');
+        this.skillPoints = Math.min(100, this.skillPoints + 45);
+      }
+      actionK(target) {
+        if (this.cooldowns.k > 0) return;
+        let baseDmg = this.getEffectiveAtk() * 2.5;
+        let isCrit = Math.random() < this.getEffectiveCritRate();
+        if (isCrit) baseDmg *= (1.5 + Math.random() * 1) * this.getCritDmgMult();
+        let actual = target.takeDamage(baseDmg, false);
+        target.addBuff({type: BUFF_TYPES.BURN, ignorePct: 0.7, duration: 3});
+        addLog(`${this.name} 燃燒之心 ${actual} +燃燒(行動時-900、無視70%防 3回)`, 'player-log');
+        this.cooldowns.k = 3; // 假設
+      }
+      actionO() {
+        if (this.cooldowns.o > 0) return;
+        // 1. 低70% hp 回80%
+        players.forEach(p => {
+          if (p.hp < p.maxHp * 0.7) {
+            p.hp = p.maxHp * 0.8;
+          }
+        });
+        // 2. 全攻+60% 3回 , 每回合回 10%自hp +300 x3
+        let selfHealPerTurn = this.hp * 0.1 + 300;
+        players.forEach(p => {
+          p.addBuff({type: BUFF_TYPES.ATK_MULT, value: 0.6, duration: 3});
+          p.addBuff({type: BUFF_TYPES.HEAL_PER_TURN, value: selfHealPerTurn, duration: 3});
+        });
+        // 3. 隨機我方立即行動 dmg15%
+        let randPlayer = players.filter(p => p.alive)[Math.floor(Math.random() * players.filter(p => p.alive).length)];
+        // 立即行動 but dmg 15%, simulate simple atk
+        let randTarget = getAliveEnemies()[0];
+        if (randPlayer && randTarget) {
+          let dmg = randPlayer.getEffectiveAtk() * 0.15;
+          randTarget.takeDamage(dmg, false);
+          addLog(`${randPlayer.name} 立即行動 ${Math.floor(dmg)} 給 ${randTarget.name} (15%)`, 'player-log');
+        }
+        addLog(`${this.name} 奇蹟之力！低血回80%、全攻+60%+回血3回、隨機行動`, 'player-log');
+        this.cooldowns.o = 4;
+      }
+      actionP() {
+        if (this.skillPoints < 100 || this.cooldowns.p > 0) return;
+        // 解除負面buff
+        players.forEach(p => {
+          p.buffs = p.buffs.filter(b => !isNegativeBuff(b.type));
+        });
+        // 自 maxhp +18% 3回
+        let oldMax = this.maxHp;
+        this.maxHp *= 1.18;
+        this.hp = (this.hp / oldMax) * this.maxHp;
+        this.addBuff({type: BUFF_TYPES.TRANSFORM_TIMER, duration: 3}); // dummy
+        // 復活死隊友25%
+        players.forEach(p => {
+          if (!p.alive && p.hp <= 0) {
+            p.hp = p.maxHp * 0.25;
+            p.alive = true;
+            addLog(`${p.name} 復活25%！`, 'heal-log');
+          }
+        });
+        this.skillPoints -= 100;
+        addLog(`${this.name} 奇蹟之心！負buff清除、自上限+18%3回`, 'player-log');
+        this.cooldowns.p = 4;
+      }
+    }
+
+    function isNegativeBuff(type) {
+      return [BUFF_TYPES.STUN, BUFF_TYPES.SILENCE, BUFF_TYPES.ATK_REDUCE, BUFF_TYPES.DEF_REDUCE, BUFF_TYPES.SPD_REDUCE, BUFF_TYPES.BURN].includes(type);
+    }
+
+    // 敵人類
+    class Enemy extends Unit {
+      constructor() {
+        super('', 0, 0, 0, 0, false, Math.random() * 10000);
+      }
+      aiAction() {
+        if (this.isStunned()) return;
+        // self dmg before act
+        this.buffs.forEach(b => {
+          if (b.type === BUFF_TYPES.SELF_DMG_BEFORE_ACT) {
+            let selfDmg = this.getEffectiveAtk() * b.value;
+            this.takeDamage(selfDmg, true);
+            addLog(`${this.name} 行動前自傷 ${Math.floor(selfDmg)}`, 'enemy-log');
+          }
+        });
+        // 隨機 70% 普通攻, 30% 技能
+        if (Math.random() < 0.7) {
+          this.normalAttack();
+        } else {
+          this.randomSkill();
+        }
+      }
+      normalAttack() {
+        let targets = players.filter(p => p.alive);
+        if (targets.length === 0) return;
+        let target = targets[Math.floor(Math.random() * targets.length)];
+        let baseDmg = this.getEffectiveAtk() * 1.5; // 最終傷害 *1.5 atk
+        let isCrit = Math.random() < this.getEffectiveCritRate();
+        if (isCrit) baseDmg *= (1.5 + Math.random() * 1);
+        let actual = target.takeDamage(baseDmg, false);
+        addLog(`${this.name} 普通攻 ${actual} 給 ${target.name}`, 'enemy-log');
+      }
+      randomSkill() {
+        const skills = [1,2,3,4];
+        const skill = skills[Math.floor(Math.random() * skills.length)];
+        switch(skill) {
+          case 1: this.skillPoJun(); break;
+          case 2: this.skillMoJin(); break;
+          case 3: this.skillGuWu(); break;
+          case 4: this.skillIgnoreDef(); break;
+        }
+      }
+      skillPoJun() {
+        let targets = players.filter(p => p.alive);
+        let target = targets[Math.floor(Math.random() * targets.length)];
+        let baseDmg = this.getEffectiveAtk() * 2.6;
+        baseDmg = target.takeDamage(baseDmg, true);
+        target.addBuff({type: BUFF_TYPES.SPD_REDUCE, value: -1.5, duration: 2}); // spd *0 ? -150% = /2.5 ?
+        target.spd /= 2.5; // simplify
+        addLog(`${this.name} 破軍 ${baseDmg}魔法 + spd-150% 2回`, 'enemy-log');
+      }
+      skillMoJin() {
+        let targets = players.filter(p => p.alive);
+        let target = targets[Math.floor(Math.random() * targets.length)];
+        target.addBuff({type: BUFF_TYPES.SILENCE, duration: 1});
+        addLog(`${this.name} 魔禁 ${target.name} 技能禁1回`, 'enemy-log');
+      }
+      skillGuWu() {
+        let self = this;
+        let randEnemyIndex = Math.floor(Math.random() * enemies.filter(e => e.alive && e !== this).length);
+        let randEnemy = enemies.filter(e => e.alive && e !== this)[randEnemyIndex];
+        if (randEnemy) {
+          randEnemy.addBuff({type: BUFF_TYPES.ATK_MULT, value: 0.5, duration: 1});
+          randEnemy.hp = Math.min(randEnemy.maxHp, randEnemy.hp + randEnemy.maxHp * 0.5);
+          // immediate action
+          setTimeout(() => randEnemy.aiAction(), 500);
+          addLog(`${this.name} 鼓舞 ${randEnemy.name} atk+50%回50% +立即行動`, 'enemy-log');
+        }
+      }
+      skillIgnoreDef() {
+        players.forEach(p => p.addBuff({type: BUFF_TYPES.CRIT_RATE_ADD, value: 0.1, duration: 1}));
+        // attacks ignore 20% def ? for next enemy atk
+        enemies.forEach(e => e.addBuff({type: 'ignore_def_next', value: 0.2, duration: 1}));
+        addLog('敵方我crit+10%、下攻無視我20%防', 'enemy-log');
+      }
+    }
+
+    class Boss extends Unit {
+      constructor(baseEnemy) {
+        let mult = 2 + Math.random() * 0.99;
+        super('BOSS', baseEnemy.atk * mult, baseEnemy.def * mult, baseEnemy.maxHp * mult, baseEnemy.spd * mult, false, 9999, true);
+        this.baseMult = mult;
+        this.healTurn = 0;
+      }
+      update() {
+        super.update();
+        this.healTurn++;
+        if (this.healTurn % 2 === 0) {
+          let heal = this.hp * 0.45;
+          this.hp = Math.min(this.maxHp, this.hp + heal);
+          addLog(`${this.name} 每2回合回45% HP`, 'enemy-log');
+        }
+        // 狂暴 <40%
+        if (this.hp / this.maxHp < 0.4) {
+          this.addBuff({type: BUFF_TYPES.ATK_MULT, value: 1.5, duration: 999});
+          this.addBuff({type: BUFF_TYPES.DEF_MULT, value: 1.5, duration: 999});
+          this.addBuff({type: BUFF_TYPES.SPD_MULT, value: 1.5, duration: 999});
+          // add extra magic
+          this.addBuff({type: BUFF_TYPES.ATK_MULT, value: 1, duration: 999}); // extra atk as magic
+        }
+        // passive when player die
+        // handled globally
+      }
+      aiAction() {
+        if (this.isStunned()) return;
+        // self dmg
+        this.buffs.forEach(b => {
+          if (b.type === BUFF_TYPES.SELF_DMG_BEFORE_ACT) {
+            let selfDmg = this.getEffectiveAtk() * b.value;
+            this.takeDamage(selfDmg, true);
+          }
+        });
+        // boss skills random or intelligent
+        const skills = [1,2,3,4];
+        const skill = skills[Math.floor(Math.random() * skills.length)];
+        switch(skill) {
+          case 1: this.bossMieShi(); break;
+          case 2: this.bossTianHeng(); break;
+          case 3: this.bossGuiJia(); break;
+          case 4: this.bossLianJi(); break; // immediate after dmg
+        }
+      }
+      bossMieShi() {
+        let totalDmg = this.hp * 1.2; // 120% current hp
+        let alivePlayers = players.filter(p => p.alive);
+        if (alivePlayers.length === 0) return;
+        let perPlayer = totalDmg / alivePlayers.length;
+        let randTarget = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+        randTarget.addBuff({type: BUFF_TYPES.STUN, duration: 1});
+        alivePlayers.forEach(p => p.takeDamage(perPlayer, false));
+        addLog(`${this.name} 滅世！分散${Math.floor(totalDmg)}傷害 +隨機暈1`, 'enemy-log');
+      }
+      bossTianHeng() {
+        let minion = new Enemy();
+        let mult = 0.7;
+        minion.atk = this.atk * mult;
+        minion.def = this.def * mult;
+        minion.maxHp = this.maxHp * 0.7;
+        minion.hp = minion.maxHp;
+        minion.spd = this.spd * mult;
+        minion.name = 'BOSS隨從';
+        enemies.push(minion);
+        renderEnemies();
+        addLog(`${this.name} 天珩！召喚隨從`, 'enemy-log');
+      }
+      bossGuiJia() {
+        this.addBuff({type: 'damage_reduce', value: 3, duration: 1}); // next dmg /3
+        addLog(`${this.name} 龜甲！下次傷害減300% CD4`, 'enemy-log');
+      }
+      bossLianJi() {
+        // handled on take dmg
+      }
+      takeDamage(dmg, isMagic, ignoreDefPct) {
+        let reduceBuff = this.buffs.find(b => b.type === 'damage_reduce');
+        if (reduceBuff) {
+          dmg /= reduceBuff.value;
+          // remove buff
+          this.buffs = this.buffs.filter(b => b !== reduceBuff);
+        }
+        let actual = super.takeDamage(dmg, isMagic, ignoreDefPct);
+        // skill4: 2次攻擊後立即2次行動
+        if (this.bossAttackCount >= 2) {
+          setTimeout(() => {
+            this.aiAction();
+            setTimeout(() => this.aiAction(), 1000);
+          }, 500);
+          this.bossAttackCount = 0;
+          addLog(`${this.name} 反擊2次！`, 'enemy-log');
+        }
+        return actual;
+      }
+    }
+
+    // 初始化玩家
+    function initPlayers() {
+      players = [
+        new Player1(),
+        new Player2(),
+        new Player3(),
+        new Player4()
+      ];
+      players.forEach(p => p.lv = 1);
+      renderPlayers();
+    }
+
+    // 生成敵人
+    function generateEnemies() {
+      let num = 3 + Math.floor(Math.random() * 3); // 3-5
+      enemies = [];
+      for (let i = 0; i < num; i++) {
+        let e = new Enemy();
+        e.name = `敵人A${i+1}`;
+        e.atk = 300 + Math.floor(Math.random() * 51);
+        e.def = 300 + Math.floor(Math.random() * 601);
+        e.maxHp = 500 + Math.floor(Math.random() * 301);
+        e.hp = e.maxHp;
+        e.spd = 20 + Math.floor(Math.random() * 81);
+        // apply upgrade mult
+        let upgradeMult = Math.pow(1.5 + Math.random() * 1.1, enemyUpgradeCount);
+        e.atk *= upgradeMult;
+        e.def *= upgradeMult;
+        e.maxHp *= upgradeMult;
+        e.hp = e.maxHp;
+        e.spd *= upgradeMult;
+        enemies.push(e);
+      }
+      // BOSS wave every 5 defeated for easier testing, original 15
+      if (totalDefeated % 5 === 0 && totalDefeated > 0) {
+        let baseE = {atk: 300, def: 300, maxHp: 500, spd: 20}; // base
+        let boss = new Boss(baseE);
+        boss.name = `BOSS-${Math.floor(totalDefeated / 5) + 1}`;
+        enemies = [boss];
+        for (let i = 0; i < 2; i++) {
+          let minion = new Enemy();
+          minion.atk = boss.atk * 0.7;
+          minion.def = boss.def * 0.7;
+          minion.maxHp = boss.maxHp * 0.7;
+          minion.hp = minion.maxHp;
+          minion.spd = boss.spd * 0.7;
+          minion.name = `BOSS小兵${i+1}`;
+          enemies.push(minion);
+        }
+        bossWave = true;
+      } else {
+        bossWave = false;
+      }
+      renderEnemies();
+      startTurn();
+    }
+
+    // 升級
+    function upgradePlayers() {
+      let mult = 1.1 + Math.random() * 0.4;
+      players.forEach(p => {
+        if (p.alive) {
+          p.atk *= mult;
+          p.def *= mult;
+          p.maxHp *= mult;
+          p.hp = p.maxHp;
+          p.spd *= mult;
+          p.lv++;
+        }
+      });
+      playerUpgradeCount++;
+      addLog(`玩家升級！屬性x${mult.toFixed(2)} LV+1`, 'heal-log');
+    }
+
+    function upgradeEnemies() {
+      enemyUpgradeCount++;
+      addLog(`敵人強化！下波x${(1.5 + Math.random()*1.1).toFixed(2)}`, 'enemy-log');
+    }
+
+    // 渲染
+    function renderPlayers() {
+      const container = document.getElementById('players');
+      container.innerHTML = '';
+      players.forEach((p, i) => {
+        const div = document.createElement('div');
+        div.className = `player ${p.alive ? '' : 'dead'}`;
+        div.dataset.id = i;
+        div.innerHTML = `
+          <span class="name">${p.name}</span>
+          <span class="lv">LV.${p.lv || 1}</span>
+          <div class="hpbar"><div class="hp" style="width: ${ (p.hp / p.maxHp * 100) || 0 }%"></div></div>
+          <span class="hptext">${Math.floor(p.hp)}/${Math.floor(p.maxHp)}</span>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function renderEnemies() {
+      const container = document.getElementById('enemies');
+      container.innerHTML = '';
+      enemies.forEach((e, i) => {
+        const div = document.createElement('div');
+        div.className = `enemy ${e.isBoss ? 'boss' : ''} ${e.alive ? '' : 'dead'} ${selectedTarget === e ? 'selected' : ''}`;
+        div.dataset.id = i;
+        div.innerHTML = `
+          <span class="ename">${e.name}</span>
+          <div class="hpbar"><div class="hp" style="width: ${ (e.hp / e.maxHp * 100) || 0 }%"></div></div>
+          <span style="font-size:12px;">${Math.floor(e.hp)}/${Math.floor(e.maxHp)}</span>
+        `;
+        div.onclick = () => selectTarget(e);
+        container.appendChild(div);
+      });
+      updateStats();
+    }
+
+    function selectTarget(target) {
+      selectedTarget = target;
+      renderEnemies();
+    }
+
+    function getAlivePlayers() {
+      return players.filter(p => p.alive);
+    }
+
+    function getAliveEnemies() {
+      return enemies.filter(e => e.alive);
+    }
+
+    function addLog(msg, className = '') {
+      const log = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${className}`;
+      entry.textContent = msg;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function updateStats() {
+      document.getElementById('defeated').textContent = totalDefeated;
+      document.getElementById('playerUp').textContent = playerUpgradeCount;
+      document.getElementById('enemyUp').textContent = enemyUpgradeCount;
+    }
+
+    // 鍵盤輸入
+    document.addEventListener('keydown', (e) => {
+      if (!isPlayerTurn || gamePaused) return;
+      let player = players[activePlayerId];
+      if (!player || !player.alive || player.isStunned()) return;
+      switch(e.key.toUpperCase()) {
+        case 'J':
+          if (selectedTarget && selectedTarget.alive) {
+            player.actionJ(selectedTarget);
+            player.skillPoints = Math.min(100, player.skillPoints + 45);
+            nextAction();
+          }
+          break;
+        case 'K':
+          if (!player.isSilenced() && player.cooldowns.k === 0) {
+            if (player.actionK.length === 0 || selectedTarget && selectedTarget.alive) {
+              player.actionK(selectedTarget);
+              nextAction();
+            }
+          }
+          break;
+        case 'O':
+          if (!player.isSilenced() && player.cooldowns.o === 0) {
+            player.actionO(selectedTarget); // some may not need target
+            nextAction();
+          }
+          break;
+        case 'P':
+          if (player.skillPoints >= 100 && !player.isSilenced() && player.cooldowns.p === 0) {
+            player.actionP(selectedTarget);
+            nextAction();
+          }
+          break;
+      }
+      renderPlayers();
+      renderEnemies();
+    });
+
+    // burn dmg when player act
+    function applyBurnOnPlayerAct() {
+      enemies.forEach(e => {
+        e.buffs.forEach(b => {
+          if (b.type === BUFF_TYPES.BURN) {
+            let burnDmg = 900;
+            e.takeDamage(burnDmg, true);
+            addLog(`${e.name} 燃燒 -900`, 'player-log');
+          }
+        });
+      });
+    }
+
+    // 下一行動
+    function nextAction() {
+      applyBurnOnPlayerAct();
+      selectedTarget = null;
+      renderEnemies();
+      renderPlayers();
+      if (currentActionIndex >= actionQueue.length) {
+        endTurn();
+        return;
+      }
+      let unit = actionQueue[currentActionIndex];
+      currentActionIndex++;
+      if (!unit.alive) {
+        nextAction();
+        return;
+      }
+      if (unit.isPlayer) {
+        // player turn
+        isPlayerTurn = true;
+        activePlayerId = players.indexOf(unit);
+        const playerDivs = document.querySelectorAll('.player');
+        if (playerDivs[activePlayerId]) playerDivs[activePlayerId].classList.add('active');
+        addLog(`輪到 ${unit.name} 行動！選擇目標並按鍵`);
+      } else {
+        // enemy turn
+        isPlayerTurn = false;
+        document.querySelectorAll('.player').forEach(d => d.classList.remove('active'));
+        setTimeout(() => {
+          unit.aiAction();
+          renderPlayers();
+          renderEnemies();
+          nextAction();
+        }, 800);
+      }
+    }
+
+    function endTurn() {
+      // update all
+      [...players, ...enemies].forEach(u => u.update());
+      // check deaths
+      enemies = enemies.filter(e => {
+        if (!e.alive && e.hp <= 0) {
+          totalDefeated++;
+          if (totalDefeated % 3 === 0) upgradePlayers();
+          if (totalDefeated % 5 === 0) upgradeEnemies();
+          // boss passive: every enemy die (including minions)
+          let boss = enemies.find(b => b.isBoss);
+          if (boss) {
+            boss.hp = Math.min(boss.maxHp, boss.hp + boss.maxHp * 0.05);
+            boss.atk *= 1.2;
+            boss.def *= 1.6;
+            boss.spd *= 0.8;
+            addLog(`${boss.name} 被動: 血+5% 攻+20% 防+60% 速-20%`, 'enemy-log');
+          }
+          return false;
+        }
+        return true;
+      });
+      players = players.filter(p => p.alive); // remove dead, but revive possible
+      renderPlayers();
+      renderEnemies();
+      // check win/lose
+      if (getAlivePlayers().length === 0) {
+        addLog('玩家全滅！遊戲結束', 'enemy-log');
+        gamePaused = true;
+        return;
+      }
+      if (getAliveEnemies().length === 0) {
+        addLog('敵全滅！生成下一波', 'player-log');
+        setTimeout(() => {
+          generateEnemies();
+        }, 1000); // shorter delay
+        return;
+      }
+      // next turn
+      setTimeout(startTurn, 1000);
+    }
+
+    function startTurn() {
+      actionQueue = [...getAlivePlayers(), ...getAliveEnemies()].sort((a,b) => b.getEffectiveSpd() - a.getEffectiveSpd());
+      currentActionIndex = 0;
+      nextAction();
+    }
+
+    // 測試下一波
+    window.nextWave = function() {
+      enemies = [];
+      renderEnemies();
+      generateEnemies();
+    };
+
+    // 初始化遊戲
+    initPlayers();
+    generateEnemies();
+  </script>
 </body>
 </html>
